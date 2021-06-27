@@ -2,9 +2,10 @@
 
 Target user: School children forced to transition to online education in this unprecedented situation
 
-Problem: Kids are finding it hard to adapt to online education
+Problem: Kids are finding it hard to adapt to online education\
 
-Solution
+
+Solution:
 
 Using comics to empathize and bring lightness to online school transition
 
