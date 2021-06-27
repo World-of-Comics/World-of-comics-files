@@ -6,7 +6,7 @@ Problem: Kids are finding it hard to adapt to online education <br />
 
 
 
-Solution:
+*Solution:*
 
 Using comics to empathize and bring lightness to online school transition
 
