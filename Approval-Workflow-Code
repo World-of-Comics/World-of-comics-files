@@ -1,0 +1,103 @@
+xfunction setupTrigger() {
+  ScriptApp.newTrigger('sendConfirmationMail')
+    .forForm('17YaC6KWRGxeT2j7wv38UyeZKAU1fDfWnLVs1syZXbgU')
+    .onFormSubmit()
+    .create();
+}
+
+function sendConfirmationMail(e) {
+  var useremail = e.response.getRespondentEmail();
+  GmailApp.sendEmail(useremail, 'Your comic is now pending approval', 'Thanks for submitting your comic! It is now pending approval. After approval, it will be displayed on our website');
+  
+  // Open the sheet which stores the responses
+  var ssID = '1KgFQlvlYkx_tTGdvT5QWCjq4bemlWiDHluyZlHnsv20' // Replace with spreadsheet ID
+  var ssName = 'Form Responses 1' // Replace with sheet name
+  var sheet = SpreadsheetApp.openById(ssID).getSheetByName(ssName);
+
+ // #2 - Get the response ID and save it to the sheet.
+ var responseID = e.response.getId();
+ sheet.getRange(sheet.getLastRow(), 21).setValue(responseID);
+
+ // #3 - Set the status of the request to 'Pending'.
+ sheet.getRange(sheet.getLastRow(), 22).setValue('Pending');
+
+ // Create variables for email
+ var items = e.source.getItems();
+ var subject = "A new comic requires your approval!";
+
+ // Include form data in the body of the email
+ var message = "";
+  
+ var fileId = e.response.getResponseForItem(items[0]).getResponse();
+ var fileUrl = 'https://drive.google.com/uc?export=view&id=' + fileId;
+ var approvalUrl = 'https://script.google.com/macros/s/AKfycbwqqNGXb1Fq-8Q7n2h4A9-J_hc1oIgMRyApWjiF-lMAXStNSNlB/exec?id=' + responseID + "&status=Approved";
+ var rejectUrl = 'https://script.google.com/macros/s/AKfycbwqqNGXb1Fq-8Q7n2h4A9-J_hc1oIgMRyApWjiF-lMAXStNSNlB/exec?id=' + responseID + "&status=Denied"; 
+ 
+ message += "The following comic was submitted: " + fileUrl + '\n\n';
+
+ // #4 - Insert approve and deny links within the body of the email
+ message += "\n\nClick link below to approve:" + approvalUrl + "\n\n" + "Click link below to reject: " + rejectUrl;
+
+  
+ // #5 - Email the manager the request information
+ GmailApp.sendEmail('classica314@gmail.com', subject, message);
+}
+
+function doGet(request) {
+
+  // Retrieve the parameter information for response ID and stutus
+  var responseID = request.parameters.id;
+  var status = request.parameters.status;
+  // var responseID = '2_ABaOnudQnFZNsWmXgyqLOvqVfnUjzkSRZ3_sJKBFTyX9Ya-RTpEa3VWfEe77gBS_dk7tiYQ';
+  // var status = 'Approved';
+
+  // Open the sheet which stores the responses
+  var ssID = '1KgFQlvlYkx_tTGdvT5QWCjq4bemlWiDHluyZlHnsv20' // Replace with spreadsheet ID
+  var ssName = 'Form Responses 1' // Replace with sheet name
+  var sheet = SpreadsheetApp.openById(ssID).getSheetByName(ssName);
+
+  // Find the row where the ID in the URL equals the ID in the sheet and update the
+  // status to the parameter value
+  var data = sheet.getDataRange().getValues();
+  var submitterEmail = '';
+  var result = '';
+  for (var i=1; i < data.length; i++) {
+    var resIDinSheet = data[i][20];
+    var currentstatus = data[i][21]
+    if (resIDinSheet == responseID) {
+        Logger.log('setting status');
+        if (currentstatus == 'Pending') {
+          sheet.getRange(i + 1,22).setValue(status);
+          submitterEmail = data[i][1];
+            Logger.log('sending email to submitter '+ submitterEmail);
+            if (status == 'Approved') {
+              GmailApp.sendEmail(submitterEmail, 'Your comic submission has been approved', 'Your comic has been approved! It will now be displayed on our website');
+            } else {
+              GmailApp.sendEmail(submitterEmail, 'Your comic submission has been rejected', 'Your comic has been rejected. It will not be displayed on our website. Please read the creator\'s guide before making comics in the future.');
+            }
+            if (status == 'Approved') {
+                 var fileUrl = data[i][2];
+                 if (fileUrl != undefined) {
+                 Logger.log('Copying file' + fileUrl);
+                 Logger.log(getIdFromUrl(fileUrl));
+                 var file = DriveApp.getFileById(getIdFromUrl(fileUrl));
+                 var targetFolder = DriveApp.getFolderById('1A8jaeaI-VeG0dHRGUDwmwsUoe_cBjcW5');
+                 file.makeCopy(targetFolder);
+             }
+             result = "The comic has been '" + status + "'.";
+          }
+        } else {
+        result = "The comic has already been '" + currentstatus + "'. No action has been taken.";
+      }
+    }
+  }
+  
+  return ContentService.createTextOutput(result);
+
+  // Send email to requestor alerting them of the approval/denial of request
+  // MailApp.sendEmail(email, subject, message);
+
+  // Show message to manager that the response has been updated.
+}
+
+function getIdFromUrl(url) { return url.match(/[-\w]{25,}/); }
